@@ -13,9 +13,9 @@ window.SITE = {
   // Payment details shown in the order form. Fill in your own; anything left
   // empty falls back to "I'll send the payment details after I confirm your order".
   payment: {
-    gcash: { name: "", number: "" },
-    maya:  { name: "", number: "" },
-    bank:  { bank: "", name: "", number: "" }
+    gcash: { name: "Lean Miguel Marquez", number: "09958143364" },
+    maya:  { name: "Lean Miguel Marquez", number: "09213584345" },
+    bank:  { bank: "BDO", name: "Lean Miguel Marquez", number: "013370120539" }
   },
 
   // Update these to your exact profile links.
@@ -23,9 +23,9 @@ window.SITE = {
     instagram: { label: "Instagram", handle: "@lnmglmrqz", url: "https://www.instagram.com/lnmglmrqz/",  icon: "fa-instagram" },
     tiktok:    { label: "TikTok",    handle: "@lnmglmrq",  url: "https://www.tiktok.com/@lnmglmrq",      icon: "fa-tiktok" },
     pinterest: { label: "Pinterest", handle: "@lnmglmrqz", url: "https://www.pinterest.com/lnmglmrqz/",  icon: "fa-pinterest" },
-    facebook:  { label: "Facebook",  handle: "Miguel Marquez", url: "https://www.facebook.com/",         icon: "fa-facebook-f" },
+    facebook:  { label: "Facebook",  handle: "Miguel Marquez", url: "https://www.facebook.com/lnmglmrq", icon: "fa-facebook-f" },
     threads:   { label: "Threads",   handle: "@lnmglmrqz", url: "https://www.threads.net/@lnmglmrqz",    icon: "fa-threads" },
-    youtube:   { label: "YouTube",   handle: "",           url: "https://www.youtube.com/",              icon: "fa-youtube" },
+    youtube:   { label: "YouTube",   handle: "lnmglmrqz",  url: "https://www.youtube.com/@lnmglmrqz",    icon: "fa-youtube" },
     linkedin:  { label: "LinkedIn",  handle: "lean-miguel-marquez", url: "https://www.linkedin.com/in/lean-miguel-marquez", icon: "fa-linkedin-in" }
   },
 
