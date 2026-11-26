@@ -45,3 +45,16 @@ Payment details shown in the order form (GCash, Maya, bank) come from `payment` 
 
 ## Database
 The site is connected to the Supabase project `sketchbook-chronicles` (URL and anon key are in `js/config.js`). Messages, orders and subscribers now save to the database. To read them, create your login in Supabase → Authentication → Users → Add user, then sign in at `admin.html`.
+
+## Payment: banks and currencies
+- **Several receiving banks.** In `js/config.js`, under `payment`, add a `banks` list. Buyers pick which bank to send to:
+  ```js
+  banks: [
+    { bank: "BDO",       name: "Your Name", number: "0000 0000 0000" },
+    { bank: "Metrobank", name: "Your Name", number: "0000 0000 0000" },
+    { bank: "GoTyme",    name: "Your Name", number: "0000 0000 0000" }
+  ]
+  ```
+  The old single `bank: {…}` still works. With no bank filled in, buyers choose the bank they prefer and you reply with its details.
+- **Currencies.** The shop shows a "Show prices in" menu (PHP, USD, SGD, EUR, CAD, GBP, AUD, JPY, AED, HKD, SAR, KRW). Prices and orders stay in pesos; other currencies are a live estimate (`js/currency.js`).
+- **Admin login.** Only the email in `public.is_owner()` (database/schema.sql) can read orders and messages. Create that user in Supabase → Authentication → Users → Add user.

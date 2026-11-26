@@ -10,12 +10,12 @@
 
   function posts(g) {
     return `<div class="feed-block"><h4>${esc(g.title)}</h4><div class="thread-grid">` + g.items.map(p =>
-      `<${SITE.hasLink(cur) ? `a class="thread" href="${esc(S[cur].url)}" target="_blank" rel="noopener"` : `div class="thread"`}><img src="${esc(p.src)}" alt="Drawing shared on ${esc(F[cur].label)}" loading="lazy" decoding="async"><div class="tc"><small>${p.pinned ? "Pinned" : esc(p.date || "")}</small><p>${esc(p.caption)}</p></div></${SITE.hasLink(cur) ? "a" : "div"}>`).join("") + `</div></div>`;
+      `<${SITE.hasLink(cur) ? `a class="thread" href="${esc(S[cur].url)}" target="_blank" rel="noopener"` : `div class="thread"`}><img src="${esc(p.src)}" alt="Drawing shared on ${esc(F[cur].label)}" width="600" height="800" loading="eager" decoding="async"><div class="tc"><small>${p.pinned ? "Pinned" : esc(p.date || "")}</small><p>${esc(p.caption)}</p></div></${SITE.hasLink(cur) ? "a" : "div"}>`).join("") + `</div></div>`;
   }
   function grid(g) {
     if (g.type === "posts") return posts(g);
     return `<div class="feed-block"><h4>${esc(g.title)}</h4><div class="feed-grid ar-${g.ratio}">` +
-      g.items.map(it => `<a class="feed-tile" href="${esc(F[cur].url || S[cur].url)}" target="_blank" rel="noopener" aria-label="Open ${esc(F[cur].label)}"><img src="${esc(it)}" alt="${esc(g.alt)}" loading="lazy" decoding="async"></a>`).join("") + `</div></div>`;
+      g.items.map(it => `<a class="feed-tile" href="${esc(F[cur].url || S[cur].url)}" target="_blank" rel="noopener" aria-label="Open ${esc(F[cur].label)}"><img src="${esc(it)}" alt="${esc(g.alt)}" width="800" height="800" loading="eager" decoding="async"></a>`).join("") + `</div></div>`;
   }
   function render() {
     const f = F[cur], s = S[cur];

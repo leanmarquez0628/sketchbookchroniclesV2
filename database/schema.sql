@@ -22,7 +22,7 @@ create table if not exists public.orders (
   product_code  text not null,
   product_name  text not null,
   variant       text not null,                 -- 'Framed poster' | 'Print only'
-  size          text not null,                 -- 'A5' | 'A4' | 'A3'
+  size          text not null,                 -- 'A5' | 'A4' | 'A3' | 'A2'
   price         numeric(10,2) not null check (price >= 0),   -- price each
   quantity      int not null default 1 check (quantity between 1 and 20),
   total         numeric(10,2),                                -- price x quantity (shipping extra)
@@ -74,12 +74,14 @@ create table if not exists public.products (
   name        text not null,
   team        text,
   image_url   text not null,
-  framed_a5   numeric(10,2) not null default 1400,
+  framed_a5   numeric(10,2) not null default 1200,
   framed_a4   numeric(10,2) not null,
   framed_a3   numeric(10,2) not null,
-  print_a5    numeric(10,2) not null default 520,
+  framed_a2   numeric(10,2) not null default 3100,
+  print_a5    numeric(10,2) not null default 490,
   print_a4    numeric(10,2) not null,
   print_a3    numeric(10,2) not null,
+  print_a2    numeric(10,2) not null default 1200,
   active      boolean not null default true
 );
 
@@ -107,19 +109,26 @@ create policy "read posts" on public.blog_posts    for select to anon using (pub
 drop policy if exists "read products" on public.products;
 create policy "read products" on public.products      for select to anon using (active);
 
--- You (a signed-in Supabase Auth user) can do everything.
+-- Only YOU can read and manage everything: the signed-in user whose email is below.
+-- (Anyone could sign up with the public key, so being "signed in" alone is not enough.)
+-- If you use a different admin email, change it here and run this file again.
+create or replace function public.is_owner() returns boolean
+language sql stable set search_path = public as $$
+  select coalesce(lower(auth.jwt() ->> 'email') = 'leanmarquez0628@yahoo.com', false)
+$$;
+
 drop policy if exists "owner all messages" on public.messages;
-create policy "owner all messages" on public.messages      for all to authenticated using (true) with check (true);
+create policy "owner all messages" on public.messages      for all to authenticated using (public.is_owner()) with check (public.is_owner());
 drop policy if exists "owner all orders" on public.orders;
-create policy "owner all orders" on public.orders        for all to authenticated using (true) with check (true);
+create policy "owner all orders" on public.orders        for all to authenticated using (public.is_owner()) with check (public.is_owner());
 drop policy if exists "owner all subscribers" on public.subscribers;
-create policy "owner all subscribers" on public.subscribers   for all to authenticated using (true) with check (true);
+create policy "owner all subscribers" on public.subscribers   for all to authenticated using (public.is_owner()) with check (public.is_owner());
 drop policy if exists "owner all gallery" on public.gallery_items;
-create policy "owner all gallery" on public.gallery_items for all to authenticated using (true) with check (true);
+create policy "owner all gallery" on public.gallery_items for all to authenticated using (public.is_owner()) with check (public.is_owner());
 drop policy if exists "owner all posts" on public.blog_posts;
-create policy "owner all posts" on public.blog_posts    for all to authenticated using (true) with check (true);
+create policy "owner all posts" on public.blog_posts    for all to authenticated using (public.is_owner()) with check (public.is_owner());
 drop policy if exists "owner all products" on public.products;
-create policy "owner all products" on public.products      for all to authenticated using (true) with check (true);
+create policy "owner all products" on public.products      for all to authenticated using (public.is_owner()) with check (public.is_owner());
 
 -- ---------- Starter content (matches js/data.js) ----------
 insert into public.gallery_items (title, category, medium, year, image_url) values
@@ -210,7 +219,7 @@ insert into storage.buckets (id, name, public) values ('artworks', 'artworks', t
 drop policy if exists "artworks are public" on storage.objects;
 create policy "artworks are public" on storage.objects for select to anon, authenticated using (bucket_id = 'artworks');
 drop policy if exists "owner uploads artworks" on storage.objects;
-create policy "owner uploads artworks" on storage.objects for all to authenticated using (bucket_id = 'artworks') with check (bucket_id = 'artworks');
+create policy "owner uploads artworks" on storage.objects for all to authenticated using (bucket_id = 'artworks' and public.is_owner()) with check (bucket_id = 'artworks' and public.is_owner());
 
 -- Handy overview for the Supabase table editor: orders with their totals
 create or replace view public.order_overview with (security_invoker = true) as
@@ -294,3 +303,51 @@ insert into public.products (code, name, team, image_url, framed_a5, framed_a4, 
  ('F1-20','Lando Norris · McLaren (V2)','McLaren','assets/shop/f1-20.jpg',1400,1600,2100,520,620,890),
  ('F1-21','Max Verstappen · Red Bull (V2)','Red Bull','assets/shop/f1-21.jpg',1400,1600,2100,520,620,890)
 on conflict (code) do nothing;
+
+-- ==========================================================================
+-- Poster prices v3 (PHP) + A2 size. Safe to re-run.
+-- A5: framed 1200 / print 490   A4: framed 1550 / print 560
+-- A3: framed 2350 / print 675   A2: framed 3100 / print 1200
+-- ==========================================================================
+alter table public.products add column if not exists framed_a2 numeric(10,2) not null default 3100;
+alter table public.products add column if not exists print_a2  numeric(10,2) not null default 1200;
+update public.products set
+  framed_a5 = 1200, framed_a4 = 1550, framed_a3 = 2350, framed_a2 = 3100,
+  print_a5  = 490,  print_a4  = 560,  print_a3  = 675,  print_a2  = 1200
+where code like 'F1-%';
+
+-- ---------- Order safety: the SERVER decides price, total and status ----------
+-- Visitors can only insert. Whatever price/total/status the browser sends is replaced
+-- with the real values from the products table, so nobody can order at a fake price
+-- or mark their own order "paid". The signed-in owner is exempt (can edit freely).
+create or replace function public.orders_guard() returns trigger
+language plpgsql security definer set search_path = public as $$
+declare base text; fmt text; sz text; p public.products%rowtype; unit numeric;
+begin
+  if public.is_owner() then return new; end if;
+  new.id := gen_random_uuid(); new.created_at := now(); new.status := 'new';
+  base := substring(new.product_code from '^(.+)-(?:FR|PR)-A[2-5]$');
+  fmt  := substring(new.product_code from '-(FR|PR)-A[2-5]$');
+  sz   := lower(substring(new.product_code from '-(A[2-5])$'));
+  if base is null then raise exception 'invalid product code'; end if;
+  select * into p from public.products where code = base and active;
+  if not found then raise exception 'product unavailable'; end if;
+  unit := case fmt||sz
+    when 'FRa5' then p.framed_a5 when 'FRa4' then p.framed_a4 when 'FRa3' then p.framed_a3 when 'FRa2' then p.framed_a2
+    when 'PRa5' then p.print_a5  when 'PRa4' then p.print_a4  when 'PRa3' then p.print_a3  when 'PRa2' then p.print_a2 end;
+  if unit is null or unit <= 0 then raise exception 'price unavailable'; end if;
+  new.product_name := p.name;
+  new.variant := case fmt when 'FR' then 'Framed poster' else 'Print only' end;
+  new.size := upper(sz);
+  new.price := unit;
+  new.quantity := least(greatest(coalesce(new.quantity,1),1),20);
+  new.total := unit * new.quantity;
+  return new;
+end $$;
+drop trigger if exists orders_guard on public.orders;
+create trigger orders_guard before insert on public.orders for each row execute function public.orders_guard();
+revoke execute on function public.orders_guard() from public, anon, authenticated;
+revoke all on public.orders, public.messages, public.subscribers from anon;
+grant insert on public.orders, public.messages, public.subscribers to anon;
+alter table public.orders drop constraint if exists orders_phone_len;
+alter table public.orders add constraint orders_phone_len check (phone is null or char_length(phone) <= 40);
